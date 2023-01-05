@@ -1,0 +1,1 @@
+﻿Simple CLI todo manager using typer
