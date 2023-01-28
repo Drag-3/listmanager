@@ -1,0 +1,10 @@
+v0.0.2a
+Changed help for -desc in commands "add" and "list"
+Fixed config -m when File error showing markup
+Added more tests
+Replaced tabulate with Rich.table
+Added moar colors
+Added More options to clear command
+Added ability to specify an existing csv file in init command
+Changed help menus
+Added ls and rm as alias for list and delete respectively

@@ -1,5 +1,6 @@
 from datetime import datetime
-from taskmn.Priority import Priority
+
+from taskmn.priority import Priority
 from taskmn.exceptions import DateException, TaskNameError
 
 
@@ -49,17 +50,18 @@ class Task:
 
     @classmethod
     def load_from_data(cls, name, description, deadline, priority, task_id, created, completed):
+        # noinspection GrazieInspection
         """
-        Creates a task object by providing all data, take care to avoid duplicate ids
-        :param str name: Name for the task
-        :param str or None description: Short description of the task
-        :param str or datetime or None deadline: deadline of the task
-        :param Priority or int or None priority: priority of the task
-        :param int task_id: id of the task
-        :param str or datetime created: date created of the task
-        :param bool completed: completion status of the task
-        :return Task: Task object made with the specified parameters
-        """
+                Creates a task object by providing all data, take care to avoid duplicate ids
+                :param str name: Name for the task
+                :param str or None description: Short description of the task
+                :param str or datetime or None deadline: deadline of the task
+                :param Priority or int or None priority: priority of the task
+                :param int task_id: id of the task
+                :param str or datetime created: date created of the task
+                :param bool completed: completion status of the task
+                :return Task: Task object made with the specified parameters
+                """
         task = cls(name, description, deadline, priority)
         task.__id = task_id
         if isinstance(created, datetime):
@@ -101,9 +103,9 @@ class Task:
             elif isinstance(new_deadline, datetime):
                 self.__deadline = new_deadline
             else:
-                new_deadline_list = new_deadline.split(" ")   # Ignore time section is there is one
+                new_deadline_list = new_deadline.split(" ")  # Ignore time section is there is one
                 self.__deadline = datetime.strptime(new_deadline_list[0], '%Y-%m-%d')
-        except ValueError:   # Handle exception further up
+        except ValueError:  # Handle exception further up
             raise DateException(new_deadline)
 
     @property
@@ -152,3 +154,15 @@ class Task:
             return [str(self.__id), str(self.__name), str(self.__description), str(self.__deadline).split(" ")[0],
                     str(self.__priority.name.capitalize()), str(self.__created).split(".")[0],
                     "Yes" if self.completed else "No"]
+
+    def __eq__(self, other) -> bool:
+        if self.__class__ is other.__class__:
+            return (self.name == other.name) and (self.deadline == other.deadline) and (self.id == other.id) and \
+                (self.description == other.description) and (self.created == other.created) and \
+                (self.priority == other.priority)
+        return NotImplemented
+
+    def __ne__(self, other) -> bool:
+        if self.__class__ is other.__class__:
+            return not (self == other)
+        return NotImplemented

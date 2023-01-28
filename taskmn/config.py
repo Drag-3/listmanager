@@ -1,10 +1,12 @@
 ﻿import configparser
+import errno
 import os
 from pathlib import Path
+
 import typer
+
 from taskmn import __app_name__
 from taskmn.exceptions import ConfigDirectoryError, ConfigFileError
-
 
 """
 This modules defines the methods used to provide configuration of the app
@@ -26,14 +28,18 @@ CONFIG_DIR_PATH = Path(typer.get_app_dir(__app_name__))
 CONFIG_FILE_PATH = CONFIG_DIR_PATH / "config.ini"
 
 
-def init_app(store_path):
+def init_app(store_path, exists=False):
     """
     Initializes the configuration file and Store
+    :param exists: The specified path exists on the filesystem
     :param Path store_path: The path to the Store
     :raises ConfigFileError: Error creating the configuration file
     :raises ConfigDirectoryError: Error creating the configuration directory
     :raises ConfigFileError: Error writing to the configuration file
     """
+    if exists:
+        if not Path(store_path).exists():
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), store_path)
     _init_config_file()
     _create_store(store_path)
 

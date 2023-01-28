@@ -1,8 +1,8 @@
 import datetime
 import operator
 from enum import Enum
-from taskmn.Task import Task
-from taskmn.TaskStore import TaskStore
+from taskmn.task import Task
+from taskmn.task_store import TaskStore
 from taskmn.exceptions import TaskIDError
 
 """
@@ -25,7 +25,8 @@ class SortType(Enum):
     DEADLINE = 2
     PRIORITY = 3
 
-# Deprec
+
+# Depreciated
 # def create_taskmanager_metadata():
 #   return [Task.last_id, str(datetime.datetime.now())]
 
@@ -52,6 +53,7 @@ class TaskManager:
     """
 
     def __init__(self, tasks=None, loadfile=TaskStore.DEFAULT_TASK_STORE_PATH):
+        self.loadfile = str(loadfile)
         if tasks is not None:
             self.__tasks = tasks
         else:
@@ -150,7 +152,23 @@ class TaskManager:
         task = self.get_task(task_id)
         self.__tasks.remove(task)
         self.__store.edit_csv(task_id)
-        del task
+
+    def delete_old_tasks(self):
+        """
+        Deletes all tasks which the deadline has passed the system time
+        :return:
+        """
+        self.__tasks[:] = [task for task in self.__tasks if
+                           not (task.deadline is not None and task.deadline < datetime.datetime.now())]
+        self.__store.save_to_csv(self.to_list())
+
+    def delete_completed_tasks(self):
+        """
+        Deletes all tasks marked as complete
+        :return:
+        """
+        self.__tasks[:] = [task for task in self.__tasks if not task.completed]
+        self.__store.save_to_csv(self.to_list())
 
     def clear_tasks(self):
         """
@@ -161,7 +179,7 @@ class TaskManager:
         self.__tasks.clear()
         Task.last_id = 0
 
-    def change_completion(self, task_id):
+    def toggle_completion(self, task_id):
         """
         This toggles the completion property of the selected task
 
@@ -183,18 +201,22 @@ class TaskManager:
             built_list.append(task.to_list())
         return built_list
 
-    def save_to_file(self, filename=TaskStore.DEFAULT_TASK_STORE_PATH):
+    def save_to_file(self, filename=None):
         """
         Saves data to a specific csv file
         :param string filename: Path to save to
         """
+        if filename is None:
+            filename = self.loadfile
         self.__store.save_to_csv(self.to_list(), filename=filename)
 
-    def load_from_file(self, filename=TaskStore.DEFAULT_TASK_STORE_PATH):
+    def load_from_file(self, filename=None):
         """
         Loads a list of stacks from the designated storage
         :param filename: File to load from
         """
+        if filename is None:
+            filename = self.loadfile
         load_tuple = self.__store.load_from_csv(filename)
         Task.last_id = load_tuple[0]
         self.__tasks.clear()  # As all additions are immediately stored, not clearing will lead to duplicates

@@ -1,4 +1,5 @@
 import csv
+import errno
 import os
 import configparser
 from pathlib import Path
@@ -16,6 +17,7 @@ init_storage(Path)
 """
 
 
+# noinspection GrazieInspection
 def get_storage_path(config_file: Path) -> Path:
     """
     Reads the config file and gets the saved filestore path
@@ -115,7 +117,7 @@ class TaskStore:
         if filename is None:
             filename = self.store_filename
         if not os.path.isfile(filename):
-            raise FileNotFoundError
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
         try:
             with open(filename, 'a') as file:
                 writer = csv.writer(file)
@@ -138,7 +140,7 @@ class TaskStore:
             filename = self.store_filename
 
         if not os.path.isfile(filename):
-            raise FileNotFoundError
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
 
         temp_filename = str(filename) + ".new"
         temp_file = open(temp_filename, "w")
@@ -175,14 +177,15 @@ class TaskStore:
             filename = self.store_filename
 
         if not os.path.isfile(filename):
-            raise FileNotFoundError
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
 
         task_list = []
         max_id = 0
         try:
             with open(filename, 'r') as file:
                 reader = csv.reader(file)
-                next(reader)  # skip the header row
+                if TaskStore.DEFAULT_CSV_HEADER != next(reader):  # If the header does not match, the file is invalid
+                    raise StoreReadException(Path(filename))
 
                 for row in reader:
                     if len(row) == 0:
@@ -211,7 +214,7 @@ class TaskStore:
             raise StoreWriteException(Path(str(new_filename)))
 
         if not os.path.isfile(filename):
-            raise FileNotFoundError
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
 
         try:
             with open(filename, 'r') as file, open(new_filename, 'w') as new_file:
