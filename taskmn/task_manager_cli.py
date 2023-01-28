@@ -11,6 +11,7 @@ from rich.panel import Panel
 from taskmn import __app_name__, __version__, config, exceptions
 from taskmn import task_store
 from taskmn.task_manager import TaskManager, SortType
+from taskmn.docs import app as docs_app
 
 
 def _version_callback(value: bool):
@@ -54,6 +55,7 @@ def _info_box(message: str):
 
 
 app = typer.Typer()
+app.add_typer(docs_app, name="docs", help="Generate documentation")
 
 
 @app.callback()
@@ -331,7 +333,7 @@ def _del_completed(manager, force):
         manager.delete_completed_tasks()
 
 
-@app.command(rich_help_panel="Delete",)
+@app.command(rich_help_panel="Delete", )
 def clear(force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation dialog"),
           del_completed: bool = typer.Option(False, "--completed", "-c", help="Delete all completed", is_eager=True),
           del_old: bool = typer.Option(False, "--past-due", "-p", help="Delete all past due", is_eager=True),
