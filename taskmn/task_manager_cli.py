@@ -1,6 +1,6 @@
 import datetime
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 import click.exceptions
 import rich.table
@@ -8,10 +8,9 @@ import typer
 from rich import print
 from rich.panel import Panel
 
-from taskmn import __app_name__, __version__, config, exceptions
-from taskmn import task_store
-from taskmn.task_manager import TaskManager, SortType
+from taskmn import __app_name__, __version__, config, exceptions, task_store
 from taskmn.docs import app as docs_app
+from taskmn.task_manager import TaskManager, SortType
 
 
 def _version_callback(value: bool):
@@ -143,6 +142,9 @@ def ls(
                                  shell_complete=_complete_sort_type),
         reverse: Optional[bool] = typer.Option(False, "--reverse", "-r", help="Reverses the outputted list")
 ):
+    """
+    Alias for list
+    """
     list_all(sort, reverse)
 
 
@@ -224,6 +226,9 @@ def rm(
         task_id: int = typer.Argument(..., min=0, help="The id of the task to delete."),
         force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation dialog"),
 ):
+    """
+    Alias for delete
+    """
     delete(task_id, force)
 
 

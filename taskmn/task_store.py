@@ -1,8 +1,9 @@
+import configparser
 import csv
 import errno
 import os
-import configparser
 from pathlib import Path
+
 from taskmn.exceptions import StoreWriteException, StoreReadException, StoreCopyException
 
 """
@@ -73,6 +74,8 @@ class TaskStore:
     edit_csv(int, list[string], string)
 
     load_from_csv(string)
+
+    copy_csv(self, filename:  str = None, new_filename: str = None):
 
     """
     DEFAULT_CSV_HEADER = ['ID', 'Name', 'Description', 'Deadline', 'Priority', 'Created', 'Completed']
@@ -205,6 +208,7 @@ class TaskStore:
         :param string filename: The file to copy from
 
         :exception FileNotFoundError: The file does not exist
+        :exception FileExistsError: Attempt to copy to the same file
         :exception StoreCopyException: Copying the store failed
         """
         if filename is None or filename.isspace() or filename == '':

@@ -1,13 +1,15 @@
 from datetime import datetime
 
-from taskmn.priority import Priority
 from taskmn.exceptions import DateException, TaskNameError
+from taskmn.priority import Priority
 
 
 class Task:
     """
     A container class used to represent a Task
+    Static Attribute
 
+    last_id = The id of teh last task made
     Properties
 
     name : str
@@ -27,7 +29,7 @@ class Task:
 
     Methods
 
-
+    load_from_data(str, str || None, str || datetime || None, Priority || int || None, int, str || datetime, bool)->Task
     """
     last_id = 0
 
@@ -64,10 +66,10 @@ class Task:
                 """
         task = cls(name, description, deadline, priority)
         task.__id = task_id
-        if isinstance(created, datetime):
+        if isinstance(created, datetime):  # Just don't pass any abd type mmk
             task.__created = created
         else:
-            task.__created = datetime.strptime(created, '%Y-%m-%d %H:%M:%S.%f')  # Handle any errors further up
+            task.__created = datetime.strptime(created, '%Y-%m-%d %H:%M:%S.%f')
         task.completed = completed
         Task.last_id -= 1  # As this should be an already existing task we do not need to update the last id
         return task
@@ -144,7 +146,7 @@ class Task:
     def to_list(self, fancy=False):
         """
         Returns task object in a list representation
-        :param fancy:
+        :param fancy: Makes better looks strings
         :return:
         """
         if not fancy:

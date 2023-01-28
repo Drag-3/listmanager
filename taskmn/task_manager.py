@@ -1,9 +1,10 @@
 import datetime
 import operator
 from enum import Enum
+
+from taskmn.exceptions import TaskIDError
 from taskmn.task import Task
 from taskmn.task_store import TaskStore
-from taskmn.exceptions import TaskIDError
 
 """
 Module contains a task which controls and manages Task objects
@@ -44,6 +45,8 @@ class TaskManager:
         show_all_tasks() -> None
         get_task(int) -> Task
         get_tasks(SortType, bool) -> list
+        delete_old_tasks() -> None
+        delete_completed_tasks() -> None
         add_task(str, str, datetime || str, Priority || int) -> None
         edit_task(int, str, str,  datetime || str, Priority || int) -> None
         mark_complete(int) -> None

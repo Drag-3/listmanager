@@ -24,8 +24,8 @@ $ taskmn [OPTIONS] COMMAND [ARGS]...
 * `edit`: Edits the indicated task
 * `init`: Creates the config file and the storage...
 * `list`: Lists all the stored tasks in a pretty table.
-* `ls`
-* `rm`
+* `ls`: Alias for list
+* `rm`: Alias for delete
 
 ## `taskmn add`
 
@@ -209,6 +209,8 @@ $ taskmn list [OPTIONS]
 
 ## `taskmn ls`
 
+Alias for list
+
 **Usage**:
 
 ```console
@@ -222,6 +224,8 @@ $ taskmn ls [OPTIONS]
 * `--help`: Show this message and exit.
 
 ## `taskmn rm`
+
+Alias for delete
 
 **Usage**:
 

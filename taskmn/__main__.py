@@ -1,5 +1,7 @@
-from taskmn import __app_name__, task_manager_cli
 from rich.traceback import install
+
+from taskmn import __app_name__, task_manager_cli
+
 """
 Entry point for Tasks Manager Cli
 """
@@ -12,4 +14,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

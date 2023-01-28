@@ -1,5 +1,24 @@
 ﻿"""
-This module contains all defined exceptions used in Tasks Manager
+This module contains all user defined exceptions used in Tasks Manager
+
+    Classes
+
+        DateException
+
+        TaskNameError
+
+        ConfigFileError
+
+        ConfigDirectoryError
+
+        StoreException
+
+        StoreWriteException
+
+        StoreCopyException
+
+        TaskIDError
+
 """
 
 
