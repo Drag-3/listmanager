@@ -66,6 +66,7 @@ def _create_store(store_path: Path):
     :param store_path: path to the data store
     :raises ConfigFileError: Error writing to the configuration file
     """
+    store_path = os.path.abspath(store_path)
     config_parser = configparser.ConfigParser()
     config_parser["General"] = {"Storage": store_path}
     try:
@@ -87,7 +88,7 @@ def modify_config_file(store_path):
     if os.path.exists(CONFIG_FILE_PATH) is False:
         init_app(store_path)
     else:
-
+        store_path = os.path.abspath(store_path)
         config_parser = configparser.ConfigParser()
         config_parser.read(CONFIG_FILE_PATH)
         xstore = config_parser["General"]["Storage"]

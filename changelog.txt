@@ -1,4 +1,8 @@
-v0.0.2a
+v0.2.1a
+Changed the config file to use absolute paths in order to be able to run the program from anywhere
+Added check for copying a file to itself, instead of obliterating the data
+
+v0.2.0a
 Changed help for -desc in commands "add" and "list"
 Fixed config -m when File error showing markup
 Added more tests

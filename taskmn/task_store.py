@@ -216,6 +216,8 @@ class TaskStore:
         if not os.path.isfile(filename):
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
 
+        if filename == os.path.abspath(new_filename):
+            raise FileExistsError("Can not copy a path to itself")
         try:
             with open(filename, 'r', newline='') as file, open(new_filename, 'w', newline='') as new_file:
                 reader = csv.reader(file)
