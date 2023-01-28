@@ -65,7 +65,7 @@ class TestCli:
 
     def _get_lines_from_file(self):
         with open(self.test_store_location, 'r') as file:
-            data = file.readlines()
+            data = [line.rstrip() for line in file]
             length = len(data)
         return length - 1, data[1:]  # Ignore the Header Line
 
@@ -274,7 +274,7 @@ class TestManager:
     @pytest.fixture()
     def mock_csv(self, tmp_path):
         store_path = tmp_path / "todo.csv"
-        with store_path.open("w") as store:
+        with store_path.open("w", newline='') as store:
             writer = csv.writer(store)
             writer.writerow(task_store.TaskStore.DEFAULT_CSV_HEADER)
             writer.writerows([task.to_list() for task in self.TASK_LIST])

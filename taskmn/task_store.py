@@ -38,7 +38,7 @@ def init_storage(store_path: Path):
     :return:
     """
     try:
-        with open(store_path, 'w') as file:
+        with open(store_path, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(TaskStore.DEFAULT_CSV_HEADER)
     except OSError:
@@ -93,7 +93,7 @@ class TaskStore:
         if filename is None:
             filename = self.store_filename
         try:
-            with open(filename, 'w') as file:
+            with open(filename, 'w', newline='') as file:
                 writer = csv.writer(file)
                 # Write header
                 if header is None:
@@ -119,7 +119,7 @@ class TaskStore:
         if not os.path.isfile(filename):
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
         try:
-            with open(filename, 'a') as file:
+            with open(filename, 'a', newline='') as file:
                 writer = csv.writer(file)
                 if len(data) > 0:
                     writer.writerows(data)
@@ -143,9 +143,9 @@ class TaskStore:
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
 
         temp_filename = str(filename) + ".new"
-        temp_file = open(temp_filename, "w")
+        temp_file = open(temp_filename, "w", newline='')
         try:
-            with open(filename, 'r') as file, temp_file:
+            with open(filename, 'r', newline='') as file, temp_file:
                 reader = csv.reader(file)
                 writer = csv.writer(temp_file)
 
@@ -182,7 +182,7 @@ class TaskStore:
         task_list = []
         max_id = 0
         try:
-            with open(filename, 'r') as file:
+            with open(filename, 'r', newline='') as file:
                 reader = csv.reader(file)
                 if TaskStore.DEFAULT_CSV_HEADER != next(reader):  # If the header does not match, the file is invalid
                     raise StoreReadException(Path(filename))
@@ -217,7 +217,7 @@ class TaskStore:
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
 
         try:
-            with open(filename, 'r') as file, open(new_filename, 'w') as new_file:
+            with open(filename, 'r', newline='') as file, open(new_filename, 'w', newline='') as new_file:
                 reader = csv.reader(file)
                 writer = csv.writer(new_file)
 
