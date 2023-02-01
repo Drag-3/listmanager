@@ -27,12 +27,33 @@ def _version_callback(value: bool):
 VALID_SORTS = ["key", "deadline", "created", "priority"]
 
 
-def _complete_sort_type(ctx, param, incomplete: str):
+def complete_sort_type(ctx, param, incomplete: str):
     completion = []
     for sort in VALID_SORTS:
         if sort.startswith(incomplete):
             completion.append(sort)
     return completion
+
+
+VALID_OPTIONS = ["name", ]
+
+
+def autocomplete_existing_task(ctx: click.Context, param, incomplete: str):
+    #  First read the argument (The task id)
+    #  Load the specified task from the file -  either make a manager and load with it or import TaskStore directly
+    #  Determine which field to autocorrect based on the last option -n --desc -dl and so on
+    #  Return as a list with 1 string
+    task_id = int(ctx.args[0])
+    manager = get_manager()
+    manager.load_from_file(id_list=[task_id])
+    task = manager.get_task(task_id)
+    match param.name:  # Only have autocompletion for Name and deadline as they could have the most text
+        case 'name':
+            return ['"' + task.name + '"']
+        case 'description':
+            return ['"' + task.description + '"']
+        case _:
+            return []
 
 
 def _exception_box(message: str):
@@ -139,7 +160,7 @@ def add(
 def ls(
         sort: str = typer.Option("key", "--sort", "-s",
                                  help="How to sort the list [key/deadline/created/priority]",
-                                 shell_complete=_complete_sort_type),
+                                 shell_complete=complete_sort_type),
         reverse: Optional[bool] = typer.Option(False, "--reverse", "-r", help="Reverses the outputted list")
 ):
     """
@@ -152,7 +173,7 @@ def ls(
 def list_all(
         sort: str = typer.Option("key", "--sort", "-s",
                                  help="How to sort the list [key/deadline/created/priority]",
-                                 shell_complete=_complete_sort_type),
+                                 shell_complete=complete_sort_type),
         reverse: Optional[bool] = typer.Option(False, "--reverse", "-r", help="Reverses the outputted list")
 ):
     """
@@ -263,10 +284,14 @@ def delete(
 @app.command()
 def edit(
         task_id: int = typer.Argument(..., min=1, help="The id of the task to edit"),
-        name: str = typer.Option(None, "--name", "-n", help="Name of the task"),
-        description: str = typer.Option(None, "--description", "-desc", help="Description for the task"),
-        deadline: str = typer.Option(None, "--deadline", "-dl", help="Deadline for the task (YYYY-MM-DD)"),
-        priority: int = typer.Option(None, "--priority", "-p", min=0, max=2, help="Priority for the task"),
+        name: str = typer.Option(None, "--name", "-n", help="Name of the task",
+                                 shell_complete=autocomplete_existing_task),
+        description: str = typer.Option(None, "--description", "-desc", help="Description for the task",
+                                        shell_complete=autocomplete_existing_task),
+        deadline: str = typer.Option(None, "--deadline", "-dl", help="Deadline for the task (YYYY-MM-DD)",
+                                     shell_complete=autocomplete_existing_task),
+        priority: int = typer.Option(None, "--priority", "-p", min=0, max=2, help="Priority for the task",
+                                     shell_complete=autocomplete_existing_task),
         force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation dialog")
 ):
     """
