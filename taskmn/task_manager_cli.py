@@ -127,7 +127,7 @@ def add(
     """
     manager = get_manager()
     try:
-        manager.load_from_file()  # Get the list of Tasks from memory, in order to properly set the id of the new Task
+        manager.load_from_file(id_list=[])  # Make sure the last id is correctly set
         task = manager.add_task(name, description, deadline, priority)
     except Exception as e:
         _exception_box(f"[bold red]Adding task failed with {e}[/bold red]")
@@ -159,7 +159,7 @@ def list_all(
     Lists all the stored tasks in a pretty table.
     """
     manager = get_manager()
-    manager.load_from_file()
+    manager.load_from_file()  # Load up all tasks to output
     match sort.strip().lower():
         case "key":
             task_list = manager.get_tasks(SortType.KEY, reverse)
@@ -210,7 +210,7 @@ def complete(
     Flips the completion status of the indicated task
     """
     manager = get_manager()
-    manager.load_from_file()
+    manager.load_from_file(id_list=[task_id])
     try:
         task = manager.toggle_completion(task_id)
     except ValueError:
@@ -241,7 +241,7 @@ def delete(
     Deletes the indicated task
     """
     manager = get_manager()
-    manager.load_from_file()
+    manager.load_from_file(id_list=[task_id])
     try:
         task = manager.get_task(task_id)
         if not force:
@@ -276,7 +276,7 @@ def edit(
         _exception_box("[bold red]At least one option is required for editing[/bold red]")
         raise typer.Exit(1)
     manager = get_manager()
-    manager.load_from_file()
+    manager.load_from_file(id_list=[task_id])
     try:
         task = manager.get_task(task_id)
         if not force:
@@ -347,7 +347,7 @@ def clear(force: bool = typer.Option(False, "--force", "-f", help="Skip confirma
     Clears multiple tasks depending on options. None specified clears all tasks.
     """
     manager = get_manager()
-    manager.load_from_file()
+    manager.load_from_file()  # Load all tasks in order to clear/ filter effectively
 
     if not force:
         _par_del_options(manager, del_completed, del_old, force)

@@ -213,14 +213,15 @@ class TaskManager:
             filename = self.loadfile
         self.__store.save_to_csv(self.to_list(), filename=filename)
 
-    def load_from_file(self, filename=None):
+    def load_from_file(self, filename: str = None, id_list: list[int] = None):
         """
         Loads a list of stacks from the designated storage
+        :param id_list: A list consisting of the task ids that should be loaded if they exist. if None all are loaded
         :param filename: File to load from
         """
         if filename is None:
             filename = self.loadfile
-        load_tuple = self.__store.load_from_csv(filename)
+        load_tuple = self.__store.load_from_csv(filename, id_list)
         Task.last_id = load_tuple[0]
         self.__tasks.clear()  # As all additions are immediately stored, not clearing will lead to duplicates
         for task in load_tuple[1]:

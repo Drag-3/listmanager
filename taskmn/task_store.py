@@ -167,10 +167,11 @@ class TaskStore:
         except OSError:
             raise StoreCopyException(Path(filename), Path(temp_filename))
 
-    def load_from_csv(self, filename=None):
+    def load_from_csv(self, filename: str = None, ids_to_load: list[int] = None):
         """
         Loads the data from a csv file and returns it as a tuple
 
+        :param list[str] ids_to_load: A list of task id's to load from the Store
         :param string filename: The file to load
         :return (int, list[list[string]]: A tuple containing the maximum id, and the file's data
         :exception FileNotFoundError: The specified file does not exist
@@ -189,13 +190,22 @@ class TaskStore:
                 reader = csv.reader(file)
                 if TaskStore.DEFAULT_CSV_HEADER != next(reader):  # If the header does not match, the file is invalid
                     raise StoreReadException(Path(filename))
-
-                for row in reader:
-                    if len(row) == 0:
-                        continue
-                    task_list.append(row)
-                    if int(row[0]) > max_id:  # Calculate the max id
-                        max_id = int(row[0])
+                if not ids_to_load:  # Load all tasks to the list
+                    for row in reader:
+                        if len(row) == 0:
+                            continue
+                        task_list.append(row)
+                        if int(row[0]) > max_id:  # Calculate the max id
+                            max_id = int(row[0])
+                else:  # Load specified tasks to the list
+                    task_list = [line for line in reader]
+                    for row in reader:
+                        if len(row) == 0:
+                            continue
+                        if int(row[0]) in ids_to_load:
+                            task_list.append(row)
+                        if int(row[0]) > max_id:  # Calculate the max id
+                            max_id = int(row[0])
         except OSError:
             raise StoreReadException(Path(filename))
 
