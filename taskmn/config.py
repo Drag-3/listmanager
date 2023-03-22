@@ -5,7 +5,7 @@ from pathlib import Path
 
 import typer
 
-from taskmn import __app_name__
+from taskmn import __app_name__, data_store
 from taskmn.exceptions import ConfigDirectoryError, ConfigFileError
 
 """
@@ -41,7 +41,7 @@ def init_app(store_path, exists=False):
         if not Path(store_path).exists():
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), store_path)
     _init_config_file()
-    _create_store(store_path)
+    _create_stores(store_path)
 
 
 def _init_config_file():
@@ -60,15 +60,17 @@ def _init_config_file():
         raise ConfigFileError(CONFIG_FILE_PATH)
 
 
-def _create_store(store_path: Path):
+def _create_stores(store_path: Path):
     """
     Writes Store location to config file
     :param store_path: path to the data store
     :raises ConfigFileError: Error writing to the configuration file
     """
     store_path = os.path.abspath(store_path)
+    filter_path = os.path.abspath(filter_store.DataStore.DEFAULT_FILTER_STORE_PATH)
     config_parser = configparser.ConfigParser()
-    config_parser["General"] = {"Storage": store_path}
+    config_parser["General"] = {"Storage": store_path,
+                                "Filters": filter_path}
     try:
         with CONFIG_FILE_PATH.open("w") as config_file:
             config_parser.write(config_file)

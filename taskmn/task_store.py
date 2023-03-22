@@ -186,28 +186,40 @@ class TaskStore:
         task_list = []
         max_id = 0
         try:
-            with open(filename, 'r', newline='') as file:
+            with open(filename, 'rU', newline='') as file:
                 reader = csv.reader(file)
-                if TaskStore.DEFAULT_CSV_HEADER != next(reader):  # If the header does not match, the file is invalid
+                print(reader)
+                header = next(reader)
+
+                print(header)
+                if TaskStore.DEFAULT_CSV_HEADER != header:  # If the header does not match, the file is invalid
                     raise StoreReadException(Path(filename))
                 if not ids_to_load:  # Load all tasks to the list
                     for row in reader:
                         if len(row) == 0:
                             continue
                         task_list.append(row)
-                        if int(row[0]) > max_id:  # Calculate the max id
-                            max_id = int(row[0])
-                else:  # Load specified tasks to the list
-                    task_list = [line for line in reader]
+                        max_id = max(max_id, int(row[0]))
+                else:  # Load specified tasks to the list. If empty throw away the loaded tasks and just return id
+                    # task_list = [line for line in reader]
                     for row in reader:
                         if len(row) == 0:
                             continue
                         if int(row[0]) in ids_to_load:
                             task_list.append(row)
-                        if int(row[0]) > max_id:  # Calculate the max id
-                            max_id = int(row[0])
-        except OSError:
+                        max_id = max(max_id, int(row[0]))
+        except OSError as e:
+            print(e)
+            print(e.errno)
+            print(e.strerror)
+            print(e.filename)
+            print(e.args)
             raise StoreReadException(Path(filename))
+        except Exception as e:
+            print(e)
+            print(e.args)
+            print(e.__str__())
+            raise e
 
         return max_id, task_list
 

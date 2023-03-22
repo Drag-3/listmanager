@@ -8,7 +8,7 @@ import typer
 from rich import print
 from rich.panel import Panel
 
-from taskmn import __app_name__, __version__, config, exceptions, task_store
+from taskmn import __app_name__, __version__, config, exceptions, task_store, data_store
 from taskmn.docs import app as docs_app
 from taskmn.task_manager import TaskManager, SortType
 
@@ -111,6 +111,7 @@ def init(store_path: str = typer.Option(
     else:
         _info_box(f"[green]Config file successfully created.[/green]")
     try:
+        filter_store.init_storage(filter_store.DataStore.DEFAULT_FILTER_STORE_PATH)
         if not exists:
             task_store.init_storage(Path(store_path))
     except OSError as e:
@@ -158,29 +159,54 @@ def add(
 
 @app.command(rich_help_panel="List")
 def ls(
+        on: str = typer.Argument("task", help="list [filter]s or [task]s"),
         sort: str = typer.Option("key", "--sort", "-s",
                                  help="How to sort the list [key/deadline/created/priority]",
                                  shell_complete=complete_sort_type),
+        filters: str = typer.Option(None, "--filter", "-f", help="Filter to sort by"),
         reverse: Optional[bool] = typer.Option(False, "--reverse", "-r", help="Reverses the outputted list")
 ):
     """
     Alias for list
     """
-    list_all(sort, reverse)
+    list_all(on, sort, filters, reverse)
 
 
+# taskmn ls task -s sort -f filters
 @app.command(name="list", rich_help_panel="List")
 def list_all(
+        on: str = typer.Argument("task", help="list [filter]s or [task]s"),
         sort: str = typer.Option("key", "--sort", "-s",
                                  help="How to sort the list [key/deadline/created/priority]",
                                  shell_complete=complete_sort_type),
+        filters: str = typer.Option(None, "--filter", "-f", help="Filter to sort by"),
         reverse: Optional[bool] = typer.Option(False, "--reverse", "-r", help="Reverses the outputted list")
 ):
     """
     Lists all the stored tasks in a pretty table.
     """
+
+    print("task/filter", on)
+    print("sort", sort)
+    print("reversed", reverse)
+    print("filter", filters)
+
+    # First check which it is on. pass to a different function depending
+    match on.strip().lower():
+        case "task":
+            _list_tasks(sort, filters, reverse)
+        case "filter":
+            _list_filters()
+        case _:
+            _exception_box(f"[bold red]{on} is not a valid arg for list [/bold red]"
+                           f"[bold green]\[task/list][/bold green]")
+            raise typer.Exit(1)
+
+
+def _list_tasks(sort: str, filters: str, reverse: bool):
     manager = get_manager()
     manager.load_from_file()  # Load up all tasks to output
+
     match sort.strip().lower():
         case "key":
             task_list = manager.get_tasks(SortType.KEY, reverse)
@@ -222,7 +248,8 @@ def list_all(
         print(table)
     typer.Exit()
 
-
+def _list_filters():
+    pass
 @app.command()
 def complete(
         task_id: int = typer.Argument(None, min=1, help="The id of the task to change the completion status")
