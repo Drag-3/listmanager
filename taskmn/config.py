@@ -26,6 +26,8 @@ def modify_config_file(Path):
 """
 CONFIG_DIR_PATH = Path(typer.get_app_dir(__app_name__))
 CONFIG_FILE_PATH = CONFIG_DIR_PATH / "config.ini"
+FILTERS_CONFIG_FILE_PATH = CONFIG_DIR_PATH / "filters.ini"
+
 
 
 def init_app(store_path, exists=False):
@@ -41,7 +43,7 @@ def init_app(store_path, exists=False):
         if not Path(store_path).exists():
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), store_path)
     _init_config_file()
-    _create_stores(store_path)
+    _create_configs(store_path)
 
 
 def _init_config_file():
@@ -56,21 +58,36 @@ def _init_config_file():
         raise ConfigDirectoryError(CONFIG_DIR_PATH)
     try:
         CONFIG_FILE_PATH.touch(exist_ok=True)
+        FILTERS_CONFIG_FILE_PATH.touch(exist_ok=True)
     except OSError:
         raise ConfigFileError(CONFIG_FILE_PATH)
 
 
-def _create_stores(store_path: Path):
+def _create_configs(data_path: Path):
     """
     Writes Store location to config file
-    :param store_path: path to the data store
+    :param data_path: path to the data store
     :raises ConfigFileError: Error writing to the configuration file
     """
-    store_path = os.path.abspath(store_path)
-    filter_path = os.path.abspath(filter_store.DataStore.DEFAULT_FILTER_STORE_PATH)
+    data_path = os.path.abspath(data_path)
+
     config_parser = configparser.ConfigParser()
-    config_parser["General"] = {"Storage": store_path,
-                                "Filters": filter_path}
+    config_parser["General"] = {"Storage": data_path}
+
+    filter_config_parser = configparser.ConfigParser()
+    default_filters = [
+        {"name": "Past Due", "criteria": "task_deadline < DATETIME('now')"},
+        {"name": "Not Due", "criteria": "task_deadline > DATETIME('now')"},
+        {"name": "Completed", "criteria": "task_completed = TRUE"},
+        {"name": "Not Completed", "criteria": "task_completed = False"},
+        {"name": "No Tasks",
+         "criteria": "SELECT COUNT(*) FROM tag LEFT JOIN tag_task ON tag.tag_id = tag_task.tag_id WHERE tag_task.tag_id IS NULL"}
+    ]
+
+    for idx, f in enumerate(default_filters):
+        section_name = f"filter_{idx}"
+        filter_config_parser[section_name] = f
+
     try:
         with CONFIG_FILE_PATH.open("w") as config_file:
             config_parser.write(config_file)
@@ -79,8 +96,16 @@ def _create_stores(store_path: Path):
         exp.message = f'Writing to config file at "{exp.path}" has failed'
         raise exp
 
+    try:
+        with FILTERS_CONFIG_FILE_PATH.open("w") as config_file:
+            filter_config_parser.write(config_file)
+    except OSError:
+        exp = ConfigFileError(FILTERS_CONFIG_FILE_PATH)
+        exp.message = f'Writing to config file at "{exp.path}" has failed'
+        raise exp
 
-def modify_config_file(store_path):
+
+def modify_stored_path(store_path):
     """
     Changes the store path stored in the configuration file to the one provided
     :param store_path: Store path to change

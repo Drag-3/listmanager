@@ -2,3 +2,6 @@
 
 __app_name__ = "taskmn"
 __version__ = "0.3.0a"
+
+from rich.console import Console
+console = Console()

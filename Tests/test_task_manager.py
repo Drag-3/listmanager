@@ -7,12 +7,12 @@ from taskmn import task as TASK, task_manager, exceptions, task_store
 
 class TestManager:
     TASK_LIST = [
-        TASK.Task.load_from_data("Name", "Description", "2064-03-03", 0, 1, "2011-01-26 21:21:47.813295", True),
-        TASK.Task.load_from_data("Name2", "Description2", "2032-03-03", 1, 2, "2015-01-26 21:21:47.813295", True),
-        TASK.Task.load_from_data("Name3", "Description3", "2016-03-03", 2, 3, "2004-01-26 21:21:47.813295", False),
-        TASK.Task.load_from_data("Name4", "Description4", "2008-03-03", 1, 4, "2003-01-26 21:21:47.813295", False),
-        TASK.Task.load_from_data("Name5", "Description5", "2004-03-03", 0, 5, "2002-01-26 21:21:47.813295", False),
-        TASK.Task.load_from_data("Name6", "Description6", "2002-03-03", 1, 6, "2001-01-26 21:21:47.813295", True),
+        TASK.Task.load_from_data(1, "Name", "Description", "2064-03-03", 0, "2011-01-26 21:21:47.813295", True),
+        TASK.Task.load_from_data(2, "Name2", "Description2", "2032-03-03", 1, "2015-01-26 21:21:47.813295", True),
+        TASK.Task.load_from_data(3, "Name3", "Description3", "2016-03-03", 2, "2004-01-26 21:21:47.813295", False),
+        TASK.Task.load_from_data(4, "Name4", "Description4", "2008-03-03", 1, "2003-01-26 21:21:47.813295", False),
+        TASK.Task.load_from_data(5, "Name5", "Description5", "2004-03-03", 0, "2002-01-26 21:21:47.813295", False),
+        TASK.Task.load_from_data(6, "Name6", "Description6", "2002-03-03", 1, "2001-01-26 21:21:47.813295", True),
     ]
     TASK_SORT_RESULT_DICT = {
         "key": [0, 1, 2, 3, 4, 5],
@@ -91,7 +91,7 @@ class TestManager:
             task = manager.add_task(name, description)
             assert task.name == name
             assert task.description == description
-            manager.load_from_file(str(mock_csv))
+            manager.load_tasks_from_file(str(mock_csv))
             read = manager.to_list()
             assert len(read) == len(TestManager.TASK_LIST) + 1
 
@@ -100,7 +100,7 @@ class TestManager:
 
             with pytest.raises(FileNotFoundError):
                 manager.add_task(name, description)
-            manager.load_from_file(str(mock_csv))
+            manager.load_tasks_from_file(str(mock_csv))
             read = manager.to_list()
             assert len(read) == len(TestManager.TASK_LIST)
 
@@ -117,7 +117,7 @@ class TestManager:
 
             with pytest.raises(exceptions.TaskNameError):
                 manager.add_task(iname, description)
-            manager.load_from_file(str(mock_csv))
+            manager.load_tasks_from_file(str(mock_csv))
             read = manager.to_list()
             assert len(read) == len(TestManager.TASK_LIST)
 
@@ -142,12 +142,12 @@ class TestManager:
 
         def test_edit(self, mock_csv, name, description):
             manager = task_manager.TaskManager(loadfile=mock_csv)
-            manager.load_from_file(str(mock_csv))
+            manager.load_tasks_from_file(str(mock_csv))
             task = manager.edit_task(1, name, description)
             assert task.name == name
             if description is not None:
                 assert task.description == description
-            manager.load_from_file(str(mock_csv))
+            manager.load_tasks_from_file(str(mock_csv))
             task_from_file = manager.get_task(1)
             assert task.name == task_from_file.name
 
@@ -160,21 +160,21 @@ class TestManager:
         )
         def test_edit_invalid_parameters(self, mock_csv, iname, name, description):
             manager = task_manager.TaskManager(loadfile=str(mock_csv))
-            manager.load_from_file(str(mock_csv))
+            manager.load_tasks_from_file(str(mock_csv))
 
             with pytest.raises(exceptions.TaskNameError):
                 manager.edit_task(1, iname, description)
-            manager.load_from_file(str(mock_csv))
+            manager.load_tasks_from_file(str(mock_csv))
 
     def test_clear(self, mock_csv):
         manager = task_manager.TaskManager(loadfile=str(mock_csv))
-        manager.load_from_file(str(mock_csv))
+        manager.load_tasks_from_file(str(mock_csv))
 
         initial_len = len(manager.to_list())
         manager.clear_tasks()
         final_from_list = len(manager.to_list())
 
-        manager.load_from_file(str(mock_csv))
+        manager.load_tasks_from_file(str(mock_csv))
         final_from_file = len(manager.to_list())
 
         assert initial_len != final_from_file == final_from_list
@@ -187,7 +187,7 @@ class TestManager:
     )
     def test_delete(self, mock_csv, task_id):
         manager = task_manager.TaskManager(loadfile=str(mock_csv))
-        manager.load_from_file(str(mock_csv))
+        manager.load_tasks_from_file(str(mock_csv))
 
         initial_len = len(manager.to_list())
         manager.delete_task(task_id)
@@ -195,7 +195,7 @@ class TestManager:
             manager.get_task(task_id)
         final_from_list = len(manager.to_list())
 
-        manager.load_from_file(str(mock_csv))
+        manager.load_tasks_from_file(str(mock_csv))
         with pytest.raises(exceptions.TaskIDError):  # Check deleted from file
             manager.get_task(task_id)
         final_from_file = len(manager.to_list())
@@ -210,7 +210,7 @@ class TestManager:
         5 Past due as of 20230127, 2 not
         """
         manager = task_manager.TaskManager(loadfile=str(mock_csv))
-        manager.load_from_file(str(mock_csv))
+        manager.load_tasks_from_file(str(mock_csv))
 
         manager.delete_old_tasks()
         assert len(manager.to_list()) == 2
@@ -222,7 +222,7 @@ class TestManager:
         5 Past due as of 20230127, 2 not
         """
         manager = task_manager.TaskManager(loadfile=str(mock_csv))
-        manager.load_from_file(str(mock_csv))
+        manager.load_tasks_from_file(str(mock_csv))
 
         manager.delete_completed_tasks()
         assert len(manager.to_list()) == 3
@@ -233,7 +233,7 @@ class TestManager:
     )
     def test_complete(self, mock_csv, task_id):
         manager = task_manager.TaskManager(loadfile=str(mock_csv))
-        manager.load_from_file(str(mock_csv))
+        manager.load_tasks_from_file(str(mock_csv))
 
         if task_id > len(self.TASK_LIST):
             with pytest.raises(exceptions.TaskIDError):

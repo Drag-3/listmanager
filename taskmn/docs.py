@@ -105,7 +105,7 @@ def generate(
     """
     Generate Markdown docs for a Typer app.
     """
-    from taskmn.task_manager_cli import app as main_app
+    from taskmn.task_manager_cli_back import app as main_app
     click_obj = typer.main.get_command(main_app)
     docs = get_docs_for_click(obj=click_obj, ctx=ctx, name=name)
     clean_docs = f"{docs.strip()}\n"

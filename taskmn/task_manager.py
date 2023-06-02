@@ -1,10 +1,12 @@
 import datetime
 import operator
+import sqlite3
 from enum import Enum
 
-from taskmn.exceptions import TaskIDError
+from taskmn.exceptions import TaskIDError, TagIDError
 from taskmn.task import Task
-from taskmn.task_store import TaskStore
+from taskmn.tag import Tag
+from taskmn.data_store import DataStore
 
 """
 Module contains a task which controls and manages Task objects
@@ -37,8 +39,8 @@ class TaskManager:
     A class used to manage a list of Task objects
 
     Properties:
-        __tasks : List<Task> A list object which stores all the tasks
-        __store : TaskStore Object that manages storage and loading
+        _tasks : List<Task> A list object which stores all the tasks
+        _store : TaskStore Object that manages storage and loading
 
     Methods:
 
@@ -55,13 +57,14 @@ class TaskManager:
         load_from_file(str || Path) -> None
     """
 
-    def __init__(self, tasks=None, loadfile=TaskStore.DEFAULT_TASK_STORE_PATH):
+    def __init__(self, tasks=None, *, loadfile=DataStore.DEFAULT_DATA_STORE_PATH, filters: list[dict] = None):
         self.loadfile = str(loadfile)
+        self._filters = filters
         if tasks is not None:
-            self.__tasks = tasks
+            self._tasks = tasks
         else:
-            self.__tasks = []
-            self.__store = TaskStore(loadfile)
+            self._tasks = []
+            self._store = DataStore(loadfile)
 
     def show_all_tasks(self):
         """
@@ -71,7 +74,7 @@ class TaskManager:
 
     def __str__(self):
         string = ''
-        for task in self.__tasks:
+        for task in self.load_tasks_from_file():
             string += (str(task) + '\n')
         return string
 
@@ -81,14 +84,19 @@ class TaskManager:
 
         :param int task_id: (int) The id of the task to get
         :return: (Task) The task the user entered the id for
-        :exception TaskIDError: raises TaskIDError if task's id does not exist in __tasks
+        :exception TaskIDError: raises TaskIDError if task's id does not exist in _tasks
         """
-        for task in self.__tasks:
-            if task.id == task_id:
-                return task
+        task = self.load_tasks_from_file(id_list=[task_id])
+        if task:
+            return task[0]
         raise TaskIDError(f"Task (id = {task_id}) does not exist")
 
-    def get_tasks(self, sort: SortType = SortType.KEY, reverse: bool = False) -> list:
+    """
+    I plan to eliminate the internal list of this class and only use it as a wrapper for the Datastore object
+    Each function will however pull required lists into memory to otherwise display or act upon them
+    """
+
+    def get_tasks(self, *, sort: SortType = SortType.KEY, reverse: bool = False, tags: list[int] = None) -> list:
         """
         Returns a list containing all stored Tasks. Optional parameters can be used to sort the produced list
 
@@ -96,43 +104,45 @@ class TaskManager:
         :param bool reverse: (optional) reverses the sort method:
         :return: Returns all stored tasks in list form
         """
+        tasks = self.load_tasks_from_file(tag_list=tags)
         if SortType(sort) == SortType.KEY:
-            return sorted(self.__tasks, key=operator.attrgetter('id'), reverse=reverse)
+            return sorted(tasks, key=operator.attrgetter('id'), reverse=reverse)
         elif SortType(sort) == SortType.DATE:
-            return sorted(self.__tasks, key=operator.attrgetter('created'), reverse=reverse)
+            return sorted(tasks, key=operator.attrgetter('created'), reverse=reverse)
         elif SortType(sort) == SortType.DEADLINE:  # If deadline is None compare the smallest value we can get
-            return sorted(self.__tasks,
+            return sorted(tasks,
                           key=lambda task: task.deadline or datetime.datetime(datetime.MINYEAR, 1, 1),
                           reverse=reverse)
         elif SortType(sort) == SortType.PRIORITY:  # Priority wll sort high to low on default because it seems better
-            return sorted(self.__tasks, key=operator.attrgetter('priority'), reverse=not reverse)
+            return sorted(tasks, key=operator.attrgetter('priority'), reverse=not reverse)
         else:
-            return self.__tasks
+            return tasks
 
     def add_task(self, name, description=None, deadline=None, priority=None):
         """
-        Appends a new task to __tasks
+        Appends a new task to _tasks
 
         :param str name: The name of the task
         :param str or None description: (optional) a short description of the task
         :param datetime or str or None deadline: (optional) The deadline for the task
         :param Priority or int or None priority: (optional) The priority of the task
         """
-        task = Task(name, description, deadline, priority)
-        self.__tasks.append(task)
-        self.__store.append_to_csv([task.to_list()])
-        return task
+        task = Task(name, description, deadline, priority).to_list()
+        max_int = self._store.add_task(task)
+        task[0] = max_int
+        return Task.load_from_data(int(task[0]), task[1], task[2], task[3], int(task[4]), task[5],
+                                   bool(int(task[6])))  # Completed)
 
     def edit_task(self, task_id, name=None, description=None, deadline=None, priority=None):
         """
-            Edits a task given the task's id exists in __tasks
+            Edits a task given the task's id exists in _tasks
 
             :param int task_id: The id of the task to edit
             :param str or None name: The name of the task
             :param str or None description: (optional) a short description of the task
             :param datetime or str or None deadline: (optional) The deadline for the task
             :param Priority or int or None priority: (optional) The priority of the task
-            :exception TaskIDError: Throws TaskIDError if id does not exist in __tasks
+            :exception TaskIDError: Throws TaskIDError if id does not exist in _tasks
                 """
         task = self.get_task(task_id)
         if name is not None:
@@ -143,43 +153,44 @@ class TaskManager:
             task.deadline = deadline
         if priority is not None:
             task.priority = priority
-        self.__store.edit_csv(task_id, [task.to_list()])
+
+        self._store.edit_task(task_id, task.to_list())
         return task
 
     def delete_task(self, task_id):
         """
-        Deletes task from __tasks
+        Deletes task from _tasks
         :param int task_id:
-        :exception TaskIDError: Throws TaskIDError if id does not exist in __tasks
+        :exception TaskIDError: Throws TaskIDError if id does not exist in _tasks
         """
-        task = self.get_task(task_id)
-        self.__tasks.remove(task)
-        self.__store.edit_csv(task_id)
+        self._store.remove_tasks(ids_to_remove=[task_id])
 
     def delete_old_tasks(self):
         """
         Deletes all tasks which the deadline has passed the system time
         :return:
         """
-        self.__tasks[:] = [task for task in self.__tasks if
-                           not (task.deadline is not None and task.deadline < datetime.datetime.now())]
-        self.__store.save_to_csv(self.to_list())
+        self._store.clear_tasks(condition=f"task_completed = "
+                                          f"task_deadline IS NOT NULL AND task_deadline < DATETIME('now')")
+        # self._tasks[:] = [task for task in self._tasks if
+        #                   not (task.deadline is not None and task.deadline < datetime.datetime.now())]
+        # self._store.save_to_csv(self.to_list())
 
     def delete_completed_tasks(self):
         """
         Deletes all tasks marked as complete
         :return:
         """
-        self.__tasks[:] = [task for task in self.__tasks if not task.completed]
-        self.__store.save_to_csv(self.to_list())
+        self._store.clear_tasks(condition="task_completed = TRUE")
+        # self._tasks[:] = [task for task in self._tasks if not task.completed]
+        # self._store.save_to_csv(self.to_list())
 
     def clear_tasks(self):
         """
-        Clears all tasks from task storage
+        Clears all tasks from task storage+
         :return:
         """
-        self.__store.save_to_csv([])
-        self.__tasks.clear()
+        self._store.clear_tasks()
         Task.last_id = 0
 
     def toggle_completion(self, task_id):
@@ -187,20 +198,20 @@ class TaskManager:
         This toggles the completion property of the selected task
 
         :param int task_id: The id of the task to toggle
-        :exception TaskIDError: Throws TaskIDError if id does not exist in __tasks
+        :exception TaskIDError: Throws TaskIDError if id does not exist in _tasks
         """
         task = self.get_task(task_id)
         task.completed = not task.completed
-        self.__store.edit_csv(task_id, [task.to_list()])
+        self._store.edit_task(task_id, task.to_list())
         return task
 
     def to_list(self):
         """
         Returns this object in list[list[string]] form
-        :return list[list[string]: __tasks with all tasks converted to list[string]
+        :return list[list[string]: _tasks with all tasks converted to list[string]
         """
         built_list = []
-        for task in self.__tasks:
+        for task in self.load_tasks_from_file():
             built_list.append(task.to_list())
         return built_list
 
@@ -211,25 +222,99 @@ class TaskManager:
         """
         if filename is None:
             filename = self.loadfile
-        self.__store.save_to_csv(self.to_list(), filename=filename)
+        self._store.save_to_csv(self.to_list(), filename=filename)
 
-    def load_from_file(self, filename: str = None, id_list: list[int] = None):
+    def load_tasks_from_file(self, *, filename: str = None, id_list: list[int] = None, tag_list: list[int] = None):
         """
         Loads a list of stacks from the designated storage
+        :param tag_list: A list consisting of tag ids that are put over
         :param id_list: A list consisting of the task ids that should be loaded if they exist. if None all are loaded
         :param filename: File to load from
         """
         if filename is None:
             filename = self.loadfile
-        load_tuple = self.__store.load_from_csv(filename, id_list)
-        Task.last_id = load_tuple[0]
-        self.__tasks.clear()  # As all additions are immediately stored, not clearing will lead to duplicates
-        for task in load_tuple[1]:
-            self.__tasks.append(Task.load_from_data(task[1],  # Name
-                                                    task[2],  # Description
-                                                    task[3],  # Deadline
-                                                    int(task[4]),  # Priority
-                                                    int(task[0]),  # ID
-                                                    task[5],  # Created datetime
-                                                    bool(int(task[6]))  # Completed
-                                                    ))
+        task_list = self._store.load_tasks(filename, id_list, tag_list)
+        self._tasks.clear()  # As all additions are immediately stored, not clearing will lead to duplicates
+        tasks = []
+        for task in task_list:
+            tasks.append(
+                Task.load_from_data(int(task[0]), task[1], task[2], task[3], int(task[4]), task[5], bool(int(task[6]))))
+        return tasks
+
+    def load_tags_from_file(self, *, filename: str = None, tasks_to_filter: list[int] = None,
+                            tags_to_load: list[int] = None):
+        if filename is None:
+            filename = self.loadfile
+        tag_list = self._store.load_tags(filename, tags_to_load, tasks_to_filter)
+        tags = []
+        for tag in tag_list:
+            tags.append(Tag.load_from_data(tag[0], tag[1]))
+        return tags
+
+    def add_tag(self, tag_name: str):
+        try:
+            tag_id, _ = self._store.add_tag(tag_name)
+            return Tag.load_from_data(tag_id, tag_name)
+        except ValueError:
+            raise ValueError(f"Tag '{tag_name}' already exists.")
+
+    def remove_tag(self, tag_identifier: str | int):
+        try:
+            tag_id = self._store.remove_tag(tag_identifier)
+            return tag_id
+        except ValueError:
+            raise TagIDError(f"Tag '{tag_identifier}' does not exist.")
+
+    def get_tags(self, filter_task: list[int] = None):
+        tags = self.load_tags_from_file(tasks_to_filter=filter_task)
+        # Add sorting if required later
+        return tags
+
+    def get_tag(self, tag_id):
+        tag = self.load_tags_from_file(tags_to_load=tag_id)
+        if tag:
+            return tag[0]
+        raise TagIDError(f"Tag (id = {tag_id}) does not exist")
+
+    def task_has_tags(self, task_list=None):
+        return self._store.task_has_tags(self.loadfile, task_list)
+
+    def tag_has_tasks(self, tag_list=None):
+        return self._store.tag_has_tasks(self.loadfile, tag_list)
+
+    def get_task_tags(self, task_id: int):
+        return self._store.load_task_tags(self.loadfile, task_id)
+
+    def get_tag_tasks(self, tag_id: int):
+        return self._store.load_tag_tasks(self.loadfile, tag_id)
+    def clear_tags(self):
+        self._store.clear_tags()
+
+    def clear_unlinked_tags(self):
+        self._store.clear_tags(condition=
+                               "SELECT COUNT(*) FROM tag"
+                               " LEFT JOIN tag_task ON tag.tag_id = tag_task.tag_id"
+                               " WHERE tag_task.tag_id IS NULL")
+
+    def add_tags_to_task(self, task_id: int, tags: list[int]):
+        try:
+            self._store.append_tags_task(task_id, tags)
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def remove_tags_from_task(self, task_id: int, tags: list[int]):
+        try:
+            self._store.remove_tag_task(task_id, tags)
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+
+if __name__ == "__main__":
+    manager = TaskManager()
+    print(manager.to_list())
+
+    manager.delete_old_tasks()
+
+    print(manager.to_list())

@@ -27,5 +27,13 @@
         </library>
       </libraries>
     </data-source>
+    <data-source source="LOCAL" name="justin_filters [PROD]" uuid="f2c85cab-e4a6-470b-a139-198149ed890b">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <remarks>prod db</remarks>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite:$USER_HOME$/justin_filters.db</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

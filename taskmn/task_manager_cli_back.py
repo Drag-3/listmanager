@@ -12,7 +12,44 @@ from taskmn import __app_name__, __version__, config, exceptions, task_store, da
 from taskmn.docs import app as docs_app
 from taskmn.task_manager import TaskManager, SortType
 
+"""
+Task Operations
+taskmn task add TAG_NAME -d DESC -dl DEADLINE -p PRIORITY  -> Adds task to DB, with name TASK_NAME and optional parameters
+taskmn task rm TASK_ID  -> Removes task TASK_ID from DB
 
+taskmn task tag add TASK_ID TAGS -> ADDS the tags in list TAGS to TASK_ID
+taskmn task tag rm TASK TAG_IDs  -> Removes the tags in list TAGS to TASK_ID
+
+taskmn task get TASK_ID -> Prints Data on task TASK_ID
+
+Tag Operations
+taskmn tag add TAG NAME -> Add tag to DB with name TAG_NAME
+taskmn tag rm TAG_ID -> Removes tag TAG_ID from DB
+
+//Adding tags to tasks in handled by task command
+
+taskmn tag get TAG_ID -> Prints Data on tag TAG_ID
+
+General Operations
+taskmn ls tasks -s SORT -r REVERSE -f [filters] -> Prints list of tasks that are associated with the tag_ids passed in list filters
+taskmn ls tasks -> Prints all tasks
+
+taskmn ls tags -s SORT -r REVERSE -f [filters] -> Prints the list of tags that are associated with the task_ids passed in list filters
+taskmn ls tags -> Prints all tags
+
+taskmn clear tasks -> Clears tasks db keeping filters
+taskmn clear tasks -c -> Clears completed tasks
+taskmn clear task -p -> Clears Past Due Tasks
+
+taskmn clear tags -> clears tags db keeping tasks
+taskmn clear tags -u -> clears unlinked tasks
+taskmn clear all -> clears all data
+
+Configuration Operations
+taskmn init SAVE_LOCATION-> Initializes DB and config files
+taskmn config -m SAVE LOCATION -> Modify Save location, Keeping Data
+taskmn config -s -> Show current save location
+"""
 def _version_callback(value: bool):
     """
     Print's application Name and version before Exiting
@@ -45,7 +82,7 @@ def autocomplete_existing_task(ctx: click.Context, param, incomplete: str):
     #  Return as a list with 1 string
     task_id = int(ctx.args[0])
     manager = get_manager()
-    manager.load_from_file(id_list=[task_id])
+    manager.load_tasks_from_file(id_list=[task_id])
     task = manager.get_task(task_id)
     match param.name:  # Only have autocompletion for Name and deadline as they could have the most text
         case 'name':
@@ -93,7 +130,7 @@ def run(version: Optional[bool] = typer.Option(
 
 @app.command(rich_help_panel="Files")
 def init(store_path: str = typer.Option(
-    str(task_store.TaskStore.DEFAULT_TASK_STORE_PATH),
+    str(data_store.DataStore.DEFAULT_DATA_STORE_PATH),
     "--store-path",
     "-s",
     prompt="Task Manager Store location?"
@@ -111,9 +148,9 @@ def init(store_path: str = typer.Option(
     else:
         _info_box(f"[green]Config file successfully created.[/green]")
     try:
-        filter_store.init_storage(filter_store.DataStore.DEFAULT_FILTER_STORE_PATH)
+        data_store.init_storage(data_store.DataStore.DEFAULT_DATA_STORE_PATH)
         if not exists:
-            task_store.init_storage(Path(store_path))
+            data_store.init_storage(Path(store_path))
     except OSError as e:
         _exception_box(f'[bold red]Creating Storage failed with {e}.[/bold red]')
         raise typer.Exit(1)
@@ -130,8 +167,19 @@ def get_manager():
     else:
         _exception_box(f"[bold red]Configuration file not found. Run 'taskmn init' and try again[/bold red]")
         raise typer.Exit(1)
+
+    if config.FILTERS_CONFIG_FILE_PATH.exists():
+        filters = data_store.get_stored_filters(config.FILTERS_CONFIG_FILE_PATH)
+    else:
+        _exception_box(f"[bold red]Filters file not found. Run 'taskmn init' and try again[/bold red]")
+        raise typer.Exit(1)
+
+    if not filters:
+        _exception_box(f"[bold red]Filters file empty for corrupted Run 'taskmn init' and try again[/bold red]")
+        raise typer.Exit(1)
+
     if store_path.exists():
-        return TaskManager(loadfile=store_path)
+        return TaskManager(loadfile=store_path, filters=filters)
     else:
         _exception_box(f"[bold red]Store file not found. Run 'taskmn init' and try again[/bold red]")
         raise typer.Exit(1)
@@ -139,6 +187,7 @@ def get_manager():
 
 @app.command()
 def add(
+        on: str = typer.Argument("task", help="add a [tag] or ([task])"),
         name: str = typer.Argument(..., help="Name of the task"),
         description: str = typer.Option(None, "--description", "-desc", help="Description for the task"),
         deadline: str = typer.Option(None, "--deadline", "-dl", help="Deadline for the task. (YYYY-MM-DD)"),
@@ -147,9 +196,21 @@ def add(
     """
     Adds a task to the list
     """
+    match on.strip().lower():
+        case "task":
+            _add_task(name, description, deadline, priority)
+        case "tag":
+            _add_tag(name)
+        case _:
+            _exception_box(f"[bold red]{on} is not a valid arg for list [/bold red]"
+                           f"[bold green]\[tasks/tags][/bold green]")
+            raise typer.Exit(1)
+
+
+def _add_task(name: str, description: str, deadline: str, priority: int):
     manager = get_manager()
     try:
-        manager.load_from_file(id_list=[])  # Make sure the last id is correctly set
+        # manager.load_from_file(id_list=[])  # Make sure the last id is correctly set
         task = manager.add_task(name, description, deadline, priority)
     except Exception as e:
         _exception_box(f"[bold red]Adding task failed with {e}[/bold red]")
@@ -157,9 +218,20 @@ def add(
         _info_box(f"[green]Adding Task #{task.id} - {task.name} Complete![/green]")
 
 
+def _add_tag(name: str):
+    manager = get_manager()
+    try:
+        # manager.load_from_file(id_list=[])  # Make sure the last id is correctly set
+        tag_id = manager.add_tag(name)
+    except Exception as e:
+        _exception_box(f"[bold red]Adding tag failed with {e}[/bold red]")
+    else:
+        _info_box(f"[green]Adding Filter #{tag_id} - {name} Complete![/green]")
+
+
 @app.command(rich_help_panel="List")
 def ls(
-        on: str = typer.Argument("task", help="list [filter]s or [task]s"),
+        on: str = typer.Argument("tasks", help="list [filter]s or [task]s"),
         sort: str = typer.Option("key", "--sort", "-s",
                                  help="How to sort the list [key/deadline/created/priority]",
                                  shell_complete=complete_sort_type),
@@ -172,14 +244,14 @@ def ls(
     list_all(on, sort, filters, reverse)
 
 
-# taskmn ls task -s sort -f filters
+# taskmn ls task -s sort -f tags
 @app.command(name="list", rich_help_panel="List")
 def list_all(
-        on: str = typer.Argument("task", help="list [filter]s or [task]s"),
+        on: str = typer.Argument("tasks", help="list [filter]s or [task]s"),
         sort: str = typer.Option("key", "--sort", "-s",
                                  help="How to sort the list [key/deadline/created/priority]",
                                  shell_complete=complete_sort_type),
-        filters: str = typer.Option(None, "--filter", "-f", help="Filter to sort by"),
+        tags: str = typer.Option(None, "--tags", "-t", help="Tags to filter by"),
         reverse: Optional[bool] = typer.Option(False, "--reverse", "-r", help="Reverses the outputted list")
 ):
     """
@@ -189,33 +261,33 @@ def list_all(
     print("task/filter", on)
     print("sort", sort)
     print("reversed", reverse)
-    print("filter", filters)
+    print("filter", tags)
 
     # First check which it is on. pass to a different function depending
     match on.strip().lower():
-        case "task":
-            _list_tasks(sort, filters, reverse)
-        case "filter":
+        case "tasks":
+            _list_tasks(sort, tags, reverse)
+        case "tags":
             _list_filters()
         case _:
             _exception_box(f"[bold red]{on} is not a valid arg for list [/bold red]"
-                           f"[bold green]\[task/list][/bold green]")
+                           f"[bold green]\[tasks/tags][/bold green]")
             raise typer.Exit(1)
 
 
 def _list_tasks(sort: str, filters: str, reverse: bool):
     manager = get_manager()
-    manager.load_from_file()  # Load up all tasks to output
+    # manager.load_from_file()  # Load up all tasks to output
 
     match sort.strip().lower():
         case "key":
-            task_list = manager.get_tasks(SortType.KEY, reverse)
+            task_list = manager.get_tasks(sort=SortType.KEY, reverse=reverse)
         case "created":
-            task_list = manager.get_tasks(SortType.DATE, reverse)
+            task_list = manager.get_tasks(sort=SortType.DATE, reverse=reverse)
         case "deadline":
-            task_list = manager.get_tasks(SortType.DEADLINE, reverse)
+            task_list = manager.get_tasks(sort=SortType.DEADLINE, rebverse=reverse)
         case "priority":
-            task_list = manager.get_tasks(SortType.PRIORITY, reverse)
+            task_list = manager.get_tasks(sort=SortType.PRIORITY, reverse=reverse)
         case _:
             _exception_box(f"[bold red]{sort} is not a valid option for -s [/bold red]"
                            f"[bold green]\[key/deadline/created/priority][/bold green]")
@@ -224,14 +296,20 @@ def _list_tasks(sort: str, filters: str, reverse: bool):
     if len(task_list) == 0:
         _info_box("You have no tasks yet [yellow]:)[/yellow]")
     else:
+        associated_tags = manager.task_has_tags()
         table = rich.table.Table(title="Tasks", show_lines=True, show_edge=True)
 
-        for element in task_store.TaskStore.DEFAULT_CSV_HEADER:
+        for element in task_store.TaskStore.DEFAULT_CSV_HEADER + ["Tag"]:
             table.add_column(element, min_width=len(element) if (len(element) < 25) else 25, max_width=50)
         for task in task_list:
             task2 = task.to_list(True)
+            task2.append(associated_tags.get(task.id))
 
             # Style the outputted table
+            if task2[-1]:
+                task2[-1] = " [bold lime_green]●[/bold lime_green] "
+            else:
+                task2[-1] = " [bold orange1]●[/bold orange1] "
             if task.completed:
                 task2[6] = f"[green]{task2[6]}[/green] :heavy_check_mark:"
             if task.deadline is not None and task.deadline < datetime.datetime.now():
@@ -243,13 +321,42 @@ def _list_tasks(sort: str, filters: str, reverse: bool):
                     task2[4] = f"[yellow]{task2[4]}[/yellow]"
                 case 2:
                     task2[4] = f"[green]{task2[4]}[/green]"
+
             table.add_row(*task2)
 
         print(table)
     typer.Exit()
 
+
 def _list_filters():
-    pass
+    manager = get_manager()
+    tag_list = manager.get_tags()
+    if len(tag_list) == 0:
+        _info_box("You have no tags yet [yellow]:)[/yellow]")
+        raise typer.Exit()
+    else:
+        associated_tasks = manager.tag_has_tasks()
+        table = rich.table.Table(title="Tags", show_lines=True, show_edge=True)
+
+        header = ["ID", "Name", "Task"]
+        for element in header:
+            table.add_column(element)
+
+        for tag in tag_list:
+            task2 = tag.to_list()
+            task2.append(associated_tasks.get(tag.id))
+
+            # Style
+            if task2[-1]:
+                task2[-1] = " [bold lime_green]●[/bold lime_green] "
+            else:
+                task2[-1] = " [bold orange1]●[/bold orange1] "
+            table.add_row(*task2)
+
+        print(table)
+    typer.Exit()
+
+
 @app.command()
 def complete(
         task_id: int = typer.Argument(None, min=1, help="The id of the task to change the completion status")
@@ -258,7 +365,7 @@ def complete(
     Flips the completion status of the indicated task
     """
     manager = get_manager()
-    manager.load_from_file(id_list=[task_id])
+    # manager.load_from_file(id_list=[task_id])
     try:
         task = manager.toggle_completion(task_id)
     except ValueError:
@@ -289,7 +396,7 @@ def delete(
     Deletes the indicated task
     """
     manager = get_manager()
-    manager.load_from_file(id_list=[task_id])
+    manager.load_tasks_from_file(id_list=[task_id])
     try:
         task = manager.get_task(task_id)
         if not force:
@@ -328,7 +435,7 @@ def edit(
         _exception_box("[bold red]At least one option is required for editing[/bold red]")
         raise typer.Exit(1)
     manager = get_manager()
-    manager.load_from_file(id_list=[task_id])
+    manager.load_tasks_from_file(id_list=[task_id])
     try:
         task = manager.get_task(task_id)
         if not force:
@@ -399,7 +506,7 @@ def clear(force: bool = typer.Option(False, "--force", "-f", help="Skip confirma
     Clears multiple tasks depending on options. None specified clears all tasks.
     """
     manager = get_manager()
-    manager.load_from_file()  # Load all tasks in order to clear/ filter effectively
+    manager.load_tasks_from_file()  # Load all tasks in order to clear/ filter effectively
 
     if not force:
         _par_del_options(manager, del_completed, del_old, force)
@@ -452,7 +559,7 @@ def modify_config(store_path: str = typer.Option(None,
         _exception_box(f"[bold red]Copying the task store has failed. {e.path} --> {e.path_2}[/bold red]")
         raise typer.Exit(1)
     try:  # Do config last to minimize chance of loosing data if something happens to the stores
-        config.modify_config_file(store_path)
+        config.modify_stored_path(store_path)
     except exceptions.ConfigFileError:
         _exception_box("[bold red]Modifying the configuration file has failed.[/bold red]")
     else:

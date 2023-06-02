@@ -131,3 +131,11 @@ class TaskIDError(ValueError):
     def __init__(self, message):
         super().__init__(message)
 
+
+class TagIDError(ValueError):
+    """
+    An invalid tag id was inputted
+    """
+    def __init__(self, message):
+        super().__init__(message)
+
